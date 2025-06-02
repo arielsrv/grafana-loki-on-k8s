@@ -8,3 +8,4 @@ cmd/promtail/promtail
 /loki
 /promtail
 build
+.idea/
