@@ -6,25 +6,9 @@ includes:
 
 vars:
   # app
-  GO_VERSION: 1.24.3
-  CGO_ENABLED: '{{if eq OS "darwin"}}0{{else}}1{{end}}'
   APP_NAME: grafana
-  SRC_DIR: src
   BUILD_DIR: build
-  ENTRY_POINT: main.go
   S: '{{if eq OS "windows"}}\{{else}}/{{end}}'
-  BIN: '{{.BUILD_DIR}}{{.S}}main{{.S}}{{.APP_NAME}}{{exeExt}}'
-  HOST: 127.0.0.1
-  PORT: 8081
-
-  # tools
-  MOCKERY_CONFIG_DIR: '{{.SRC_DIR}}{{.S}}resources{{.S}}mocks'
-  REPORTS: '{{.BUILD_DIR}}{{.S}}reports'
-  SWAG_SRC_DIR: '{{.SRC_DIR}}'
-  SWAG_OUTPUT_DIR: '{{.SRC_DIR}}/resources/docs'
-
-  # docker
-  DOCKER_IMAGE: '{{.APP_NAME}}:latest'
 
   # kubernetes
   KUBERNETES_APP_NAMESPACE: monitoring
@@ -34,107 +18,7 @@ vars:
   KUBERNETES_INGRESS: '{{.APP_NAME}}.127.0.0.1.nip.io'
   KUBERNETES_CERT: '{{.BUILD_DIR}}{{.S}}certs'
 
-  # localstack
-  TF_DIR: '{{.SRC_DIR}}/resources/terraform'
-
 tasks:
-  setup:
-    cmds:
-      - task: platform:native
-      - task: platform:go
-
-  setup:vscode:
-    cmds:
-      - cp -R '{{.SRC_DIR}}/resources/.vscode' .
-      - code .
-
-  setup:goland:
-    cmds:
-      - cp -R '{{.SRC_DIR}}/resources/.jetbrains' .run
-      - goland .
-
-  markdown:
-    cmds:
-      - markdownlint-cli2 "**/*.md" "#vendor"
-
-  audit:
-    cmds:
-      - go mod verify
-      - go vet ./...
-      - go run golang.org/x/vuln/cmd/govulncheck@latest ./...
-
-  argocd:open-*:
-    silent: true
-    vars:
-      ENV: '{{index .MATCH 0}}'
-      ARGOCD_URL: 'https://argocd.{{.ENV}}.dp.iskaypet.com/applications/{{.KUBERNETES_APP_NAMESPACE}}-{{.APP_NAME}}'
-    cmds:
-      - echo '{{.ARGOCD_URL}}'
-
-  apm:open-*:
-    silent: true
-    vars:
-      ENV: '{{index .MATCH 0}}'
-      ARGOCD_URL: 'https://iskaylog.grafana.net/d/6bnfeorMz/apm?orgId=1&refresh=1m&var-environment=dp-{{.ENV}}&var-application=go-api&var-instance=All&var-path=All'
-    cmds:
-      - echo '{{.ARGOCD_URL}}'
-
-  logs:open-*:
-    silent: true
-    vars:
-      ENV: '{{index .MATCH 0}}'
-      ARGOCD_URL: 'https://iskaylog.grafana.net/explore?schemaVersion=1&panes=%7B%22l8h%22:%7B%22datasource%22:%22grafanacloud-logs%22,%22queries%22:%5B%7B%22refId%22:%22A%22,%22expr%22:%22%7Bservice_name%3D%5C%22go-api%5C%22,%20cluster%3D%5C%22dp-{{.ENV}}%5C%22%7D%22,%22queryType%22:%22range%22,%22datasource%22:%7B%22type%22:%22loki%22,%22uid%22:%22grafanacloud-logs%22%7D,%22editorMode%22:%22code%22%7D%5D,%22range%22:%7B%22from%22:%22now-1h%22,%22to%22:%22now%22%7D,%22panelsState%22:%7B%22logs%22:%7B%22columns%22:%7B%220%22:%22Time%22,%221%22:%22Line%22%7D,%22visualisationType%22:%22table%22,%22labelFieldName%22:%22labels%22,%22refId%22:%22A%22%7D%7D%7D%7D&orgId=1'
-    cmds:
-      - echo '{{.ARGOCD_URL}}'
-
-  cicd:token:
-    cmd: echo {{.CICD_TOKEN}}
-
-  tf:clean:
-    cmds:
-      - rm -rf {{.BUILD_DIR}}/terraform
-
-  awslocal:update:
-    silent: true
-    cmds:
-      - pip install --upgrade pip
-      - localstack update all
-
-  awslocal:start:
-    silent: true
-    env:
-      LOCALSTACK_DYNAMODB_REMOVE_EXPIRED_ITEMS: 1
-    cmds:
-      - localstack start -d
-
-  awslocal:stop:
-    silent: true
-    cmds:
-      - localstack stop
-
-  awslocal:expire:
-    silent: true
-    cmds:
-      - curl -X DELETE localhost:4566/_aws/dynamodb/expired
-
-  tf:lint:
-    silent: true
-    cmds:
-      - task: platform:tf:mkdir
-      - (cd {{.TF_DIR}} || exit ; tflint)
-
-  tf:init:
-    silent: true
-    cmds:
-      - task: platform:tf:mkdir
-      - (cd {{.TF_DIR}} || exit ; terraform init)
-
-  tf:apply:
-    silent: true
-    cmds:
-      - task: platform:tf:mkdir
-      - (cd {{.TF_DIR}} || exit ; terraform apply -auto-approve)
-
   k:fix:
     desc: k8s fix
     cmds:
@@ -146,32 +30,6 @@ tasks:
       - "echo OS: {{OS}}, ARCH: {{ARCH}}, CGO_ENABLED: {{.CGO_ENABLED}}"
       - task: platform:k:mkdir
 
-  tf:mkdir:
-    cmds:
-      - "echo OS: {{OS}}, ARCH: {{ARCH}}, CGO_ENABLED: {{.CGO_ENABLED}}"
-      - task: platform:tf:mkdir
-
-  k:pod:
-    cmds:
-      - kubectl get pods -n {{.KUBERNETES_APP_NAMESPACE}} -l name=go-api
-
-  k:cmd:
-    cmds:
-      - kubectl exec -it -n {{.KUBERNETES_APP_NAMESPACE}} $(kubectl get pods -n iskaypet -l name={{.APP_NAME}} -o jsonpath="{.items[0].metadata.name}" ; echo) -c {{.APP_NAME}} -- sh
-
-  k:build:
-    desc: 'k8s build (output: {{.KUBERNETES_OUTPUT_DIR}})'
-    cmds:
-      - "echo Kubernetes current context: $(kubectl config current-context)"
-      - task: k:mkdir
-      - task: platform:k:build
-
-  k:apply:
-    desc: k8s apply
-    cmds:
-      - task: k:build
-      - task: platform:k:apply
-
   cert:mkdir:
     cmds:
       - task: platform:cert:mkdir
@@ -180,24 +38,30 @@ tasks:
     cmds:
       - task: cert:mkdir
       - task: platform:cert:install
+      - kubectl create namespace monitoring
       - task: platform:k:tls
 
-  k:ping:
-    desc: k8s ingress ping
+  k:repo:
     cmds:
-      - curl -i -X GET 'https://{{.KUBERNETES_INGRESS}}/ping' ; echo
+      - helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+      - helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server
+      - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
 
-  k:run:
-    desc: Run relevant kubernetes tasks.
+  k:setup:
     cmds:
-      - task: docker:debug
-      - task: k:build
-      - task: k:apply
-      - task: k:pod
-      - task: k:ping
-    preconditions:
-      - kubectl get namespace {{.KUBERNETES_APP_NAMESPACE}}
-      - kubectl get secret {{.APP_NAME}}--secret -n {{.KUBERNETES_APP_NAMESPACE}}
+      - helm repo update
+      - |
+        helm install ingress-nginx ingress-nginx/ingress-nginx \
+          --namespace ingress-nginx \
+          --create-namespace
+      - kubectl rollout status deployment ingress-nginx-controller -n ingress-nginx --timeout=120s
+      - |
+        helm install metrics-server metrics-server/metrics-server \
+          --namespace kube-system \
+          --set args={--kubelet-insecure-tls}
+      - kubectl rollout status deployment metrics-server -n kube-system --timeout=120s
+      - helm install kube-state-metrics prometheus-community/kube-state-metrics -n monitoring
+      - kubectl apply -k ./deployment
 
   k:graph:
     vars:
