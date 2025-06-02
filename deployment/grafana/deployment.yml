@@ -44,7 +44,7 @@ spec:
               subPath: dashboards
       containers:
       - name: grafana
-        image: docker.io/grafana/grafana:12.0.1
+        image: docker.io/grafana/grafana:latest
         env:
           - name: GF_INSTALL_PLUGINS
             value: "https://storage.googleapis.com/integration-artifacts/grafana-exploretraces-app/grafana-exploretraces-app-latest.zip;grafana-traces-app"

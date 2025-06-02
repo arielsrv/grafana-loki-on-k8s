@@ -52,7 +52,7 @@ spec:
         - '-store-gateway.sharding-ring.replication-factor=1'
         - '-ingester.out-of-order-time-window=5m'
         - '-blocks-storage.bucket-store.ignore-blocks-within=0s'
-        image: grafana/mimir:2.16.0
+        image: grafana/mimir:latest
         imagePullPolicy: IfNotPresent
         name: mimir
         ports:
@@ -82,6 +82,8 @@ spec:
           mountPath: /tsdb-sync
         - name: compactor
           mountPath: /compactor
+        - name: mimir-rules
+          mountPath: /rules/anonymous
         securityContext:
           allowPrivilegeEscalation: false
           privileged: false
@@ -108,6 +110,9 @@ spec:
           emptyDir:
             sizeLimit: "1Gi"
         - name: compactor
+          emptyDir:
+            sizeLimit: "1Gi"
+        - name: mimir-rules
           emptyDir:
             sizeLimit: "1Gi"
         - configMap:
