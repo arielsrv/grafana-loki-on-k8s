@@ -62,10 +62,10 @@ spec:
           name: http
         resources:
           limits:
-            cpu: 100m
+            cpu: 1000m
             memory: "2Gi"
           requests:
-            cpu: 100m
+            cpu: 500m
             memory: "2Gi"
         volumeMounts:
         - mountPath: /conf

@@ -53,10 +53,10 @@ spec:
               protocol: TCP
           resources:
             limits:
-              cpu: 100m
+              cpu: 1000m
               memory: "1Gi"
             requests:
-              cpu: 50m
+              cpu: 500m
               memory: "512Mi"
           livenessProbe:
             httpGet:

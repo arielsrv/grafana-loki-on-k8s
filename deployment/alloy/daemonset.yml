@@ -64,8 +64,8 @@ spec:
               mountPath: /etc/alloy
           resources:
             requests:
-              cpu: 10m
-              memory: 50Mi
+              cpu: 500m
+              memory: 100Mi
       dnsPolicy: ClusterFirst
       volumes:
         - name: config

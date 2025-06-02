@@ -5,3 +5,4 @@ resources:
 - cm.yml
 - deployment.yml
 - service.yml
+- ingress.yml

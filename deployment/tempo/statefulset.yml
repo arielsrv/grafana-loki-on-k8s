@@ -54,10 +54,10 @@ spec:
           name: opencensus
         resources:
           limits:
-            cpu: 100m
+            cpu: 1000m
             memory: "2Gi"
           requests:
-            cpu: 50m
+            cpu: 500m
             memory: "1Gi"
         volumeMounts:
         - mountPath: /conf
