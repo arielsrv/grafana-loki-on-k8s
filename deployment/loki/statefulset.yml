@@ -30,7 +30,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: loki
-          image: docker.io/grafana/loki:latest
+          image: docker.io/grafana/loki:3.5.1
           imagePullPolicy: IfNotPresent
           args:
             - "-config.file=/etc/loki/loki.yaml"
@@ -53,10 +53,10 @@ spec:
               protocol: TCP
           resources:
             limits:
-              cpu: 1000m
+              cpu: 100m
               memory: "1Gi"
             requests:
-              cpu: 500m
+              cpu: 50m
               memory: "512Mi"
           livenessProbe:
             httpGet:
