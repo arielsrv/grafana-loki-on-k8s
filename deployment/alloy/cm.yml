@@ -41,6 +41,18 @@ data:
     
     discovery.kubernetes "pods" {
     	role = "pod"
+      selectors {
+        field = "spec.nodeName=" + sys.env("HOSTNAME")
+        role = "pod"
+      }
+    }
+
+    discovery.relabel "pod_logs" {
+      targets = discovery.kubelet.pods.targets
+      rule {
+        action = "labelmap"
+        regex  = "__meta_kubernetes_pod_label_(.+)"
+      }
     }
 
     discovery.relabel "all_targets_with_address" {
@@ -49,6 +61,47 @@ data:
         source_labels = ["__address__"]
         regex        = ".+"
         action       = "keep"
+      }
+    }
+
+    discovery.relabel "pod_ebpf" {
+      targets = discovery.kubernetes.pods.targets
+      rule {
+        action = "drop"
+        regex = "Succeeded|Failed"
+        source_labels = ["__meta_kubernetes_pod_phase"]
+      }
+      rule {
+        action = "replace"
+        regex = "(.*)@(.*)"
+        replacement = "ebpf/${1}/${2}"
+        separator = "@"
+        source_labels = ["__meta_kubernetes_namespace", "__meta_kubernetes_pod_container_name"]
+        target_label = "service_name"
+      }
+      rule {
+        action = "labelmap"
+        regex = "__meta_kubernetes_pod_label_(.+)"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_namespace"]
+        target_label = "namespace"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_pod_name"]
+        target_label = "pod"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_pod_node_name"]
+        target_label = "node"
+      }
+      rule {
+        action = "replace"
+        source_labels = ["__meta_kubernetes_pod_container_name"]
+        target_label = "container"
       }
     }
     
@@ -72,6 +125,20 @@ data:
       endpoint {
         url = "http://loki:3100/loki/api/v1/push"
       }
+    }
+
+    loki.source.kubernetes "pods" {
+      targets    = discovery.relabel.pod_logs.output
+      forward_to = [loki.process.add_replay_label.receiver]
+    }
+
+    loki.process "add_replay_label" {
+      stage.static_labels {
+        values = {
+          replay = "true",
+        }
+      }
+      forward_to = [loki.write.loki.receiver]
     }
 
     loki.source.kubernetes_events "cluster" {
@@ -119,6 +186,8 @@ data:
     }
 
     // Enable only if Pyroscope is deployed
+    // make sure endpoint /debug/pprof for scraping
+    // Otherwise this will be very noisy
     // pyroscope.scrape "default" {
     //   targets    = discovery.kubernetes.pods.targets
     //   forward_to = [pyroscope.write.pyroscope.receiver]
@@ -128,6 +197,11 @@ data:
       endpoint {
         url = "http://pyroscope:4040"
       }
+    }
+
+    pyroscope.ebpf "pods" {
+      targets = discovery.relabel.pod_ebpf.output
+      forward_to = [pyroscope.write.pyroscope.receiver]
     }
 
     otelcol.exporter.otlp "tempo" {
