@@ -66,4 +66,7 @@ tasks:
           --set args={--kubelet-insecure-tls}
       - kubectl rollout status deployment metrics-server -n kube-system --timeout=120s
       - helm install kube-state-metrics prometheus-community/kube-state-metrics -n monitoring
+
+  k:deploy:
+    cmds:
       - kubectl apply -k ./deployment
