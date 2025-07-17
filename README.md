@@ -1,10 +1,15 @@
-# Grafana, Prometheus, Loki, Alloy, Tempo, Pyroscope and Mimir (LGTM)
+# Grafana, Prometheus, Loki, Alloy, Beyla, Tempo, Pyroscope and Mimir (LGTM+)
 
 [Loki](https://grafana.com/oss/loki/) is a horizontally-scalable, highly-available, multi-tenant log aggregation system inspired by Prometheus. It is designed to be very cost effective and easy to operate, as it does not index the contents of the logs, but rather a set of labels for each log stream.
 
 [Alloy](https://grafana.com/docs/alloy/latest/introduction/) is a flexible, high performance, vendor-neutral distribution of the OpenTelemetry Collector. It’s fully compatible with the most popular open source observability standards such as OpenTelemetry and Prometheus.
 
+[Beyla](https://grafana.com/docs/beyla/latest/) Grafana Beyla uses eBPF to automatically inspect application executables and the OS networking layer, and capture trace spans related to web transactions and Rate Errors Duration (RED) metrics for Linux HTTP/S and gRPC services. *All data capture occurs without any modifications to application code or configuration*.
+> [!WARNING]
+> [Beyla](https://grafana.com/docs/beyla/latest/security/) needs access to various Linux interfaces to instrument applications, loading eBPF programs, and managing network interface filters, these operations require elevated permissions.
+
 [Promtail](https://grafana.com/docs/loki/latest/clients/promtail/) is an agent which ships the contents of local logs to a private Grafana Loki instance or Grafana Cloud.
+> [!NOTE]
 > [Alloy](https://grafana.com/docs/loki/latest/setup/migrate/migrate-to-alloy/) is a replacement for Promtil, it essentially replaces the log collector/scraper that traditionally used Promtail, Grafana Agent or OTel Agent. 
 
 [Tempo](https://grafana.com/oss/tempo/) is an open source, easy-to-use, and high-scale distributed tracing backend. Tempo is cost-efficient, requiring only object storage to operate, and is deeply integrated with Grafana, Prometheus, and Loki. Tempo can ingest common open source tracing protocols, including Jaeger, Zipkin, and OpenTelemetry.
@@ -18,7 +23,7 @@ I am assuming you are already familiar with [Grafana](https://grafana.com/oss/gr
 
 ## Prerequisites
 - Kubernetes Cluster >= v1.26
-- Familiarity with Grafana, Prometheus, Loki, Promtail, Tempo and Mimir
+- Familiarity with Grafana Stack
 - ...
 - Profit?
 
@@ -70,6 +75,12 @@ I am assuming you are already familiar with [Grafana](https://grafana.com/oss/gr
 │                    │ • Trace Processor & Exporter    │                      │
 │                    │ • Profile Collector & Forwarder │                      │
 │                    └─────────────┬───────────────────┘                      │
+│                                   │                                         │
+│                    ┌──────────────┴───────────────┐                         │
+│                    │         BEYLA (eBPF)         │                         │
+│                    │  Auto-instrumentation for    │                         │
+│                    │  RED metrics & traces        │                         │
+│                    └──────────────────────────────┘                         │
 └──────────────────────────────────┼──────────────────────────────────────────┘
                                    │ Telemetry Collection
                                    ▼
@@ -97,7 +108,7 @@ VISUALIZATION QUERIES:
 
 DATA COLLECTION FLOW:
 =====================
-Applications → Grafana Alloy / Promtail → Storage Backends → Grafana Dashboards
+Applications → Beyla/Alloy/Promtail → Storage Backends → Grafana Dashboards
 
 GRAFANA DATASOURCES:
 ====================
@@ -120,11 +131,17 @@ kubectl apply -k ./deployment
 
 This will deploy the following services in `monitoring` namespace:
 
-- Grafana - preconfigured with Prometheus, Loki and Tempo as data sources
-- Prometheus
-- Loki
-- Promtail - preconfigured to push data to Loki
-- Tempo
+| Service    | Description                                                      |
+|------------|------------------------------------------------------------------|
+| Grafana    | Preconfigured with Prometheus, Mimir, Loki, Tempo, Pyroscope    |
+| Prometheus | Metrics collection and short-term storage                       |
+| Mimir      | Long-term metrics storage                                       |
+| Loki       | Log aggregation and storage                                     |
+| Alloy      | Telemetry collector, pushes to Prometheus, Mimir, Loki, Tempo, Pyroscope |
+| Beyla      | eBPF-based auto-instrumentation, pushes to Alloy                |
+| ~~Promtail~~ | Agent which ships the contents of local logs to Grafana Loki |
+| Pyroscope  | Continuous profiling backend                                    |
+| Tempo      | Distributed tracing backend                                     |
 
 ## Configuration
 
@@ -133,18 +150,18 @@ Once deployed, access Grafana UI via:
 ```shell
 kubectl port-forward -n monitoring svc/grafana 3000:3000
 ```
-
+> [!NOTE]
 > If you deploy to different namespace, update `ClusterRoleBinding` subject namespace to match
 
-Here is [how to guide from Grafana / Loki](https://grafana.com/docs/loki/latest/)
+Grafana open and composable [observability stack](https://grafana.com/about/grafana-stack/)
 
 ## Why make or use this?
 
-This is an attempt to demystify the different components of [LGTM Stack](https://github.com/grafana/helm-charts/tree/main/charts), deploying the full stack can seem overwhelming, breaking it down to smaller composable pieces will hopefully help you better understand each service and its configuration.
+This is an attempt to demystify the different components of [LGTM+ Stack](https://github.com/grafana/helm-charts/tree/main/charts), deploying the full stack can seem overwhelming, breaking it down to smaller composable pieces will hopefully help you better understand each service and its configuration.
 
 ## Source
 
-Our latest and greatest source of grafana-loki-on-k8s can be found on [GitHub]. Fork us!
+Our latest and greatest source of **grafana-loki-on-k8s* can be found on [GitHub](https://github.com/saidsef/grafana-loki-on-k8s/fork), Fork us!
 
 ## Contributing
 
