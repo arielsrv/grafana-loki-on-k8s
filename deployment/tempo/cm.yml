@@ -8,7 +8,7 @@ data:
   tempo.yaml: |
     target: all
     multitenancy_enabled: false
-    max_bytes_per_trace: 1000000
+    # max_bytes_per_trace: 1000000
     usage_report:
       reporting_enabled: false
     compactor:

@@ -45,6 +45,15 @@ spec:
       containers:
       - name: grafana
         image: docker.io/grafana/grafana:12.1.0
+        env:
+          - name: GF_INSTALL_PLUGINS
+            value: "https://storage.googleapis.com/integration-artifacts/grafana-exploretraces-app/grafana-exploretraces-app-latest.zip;grafana-traces-app"
+          - name: GF_AUTH_ANONYMOUS_ENABLED
+            value: "true"
+          - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+            value: "Admin"
+          - name: GF_AUTH_DISABLE_LOGIN_FORM
+            value: "true"
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 3000
