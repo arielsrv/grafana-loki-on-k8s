@@ -55,6 +55,17 @@ spec:
           - name: GF_AUTH_DISABLE_LOGIN_FORM
             value: "true"
         imagePullPolicy: IfNotPresent
+        env:
+        - name: GOMAXPROCS
+          valueFrom:
+            resourceFieldRef:
+              divisor: '1'
+              resource: limits.cpu
+        - name: GOMEMLIMIT
+          valueFrom:
+            resourceFieldRef:
+              divisor: '1'
+              resource: limits.memory
         ports:
         - containerPort: 3000
           name: http
