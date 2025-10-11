@@ -185,12 +185,7 @@ data:
       forward_to = [loki.process.add_replay_label.receiver]
     }
 
-    loki.process "add_replay_label" {
-      stage.drop {
-        older_than = "1h"
-        drop_counter_reason = "line_too_old"
-      }
-      stage.logfmt {}
+    loki.process "add_replay_label" {      
       forward_to = [loki.write.loki.receiver]
     }
 
