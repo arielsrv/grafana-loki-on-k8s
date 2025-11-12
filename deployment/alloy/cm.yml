@@ -13,19 +13,11 @@ data:
     }
 
     discovery.kubelet "pods" {
-      url  = string.format("https://%s:10250", sys.env("NODE_IP"))
+      refresh_interval  = "60s"
       bearer_token_file = "/var/run/secrets/kubernetes.io/serviceaccount/token"
-      // this is a local node, so we can skip TLS verification
+      url               = string.format("https://%s:10250", sys.env("NODE_IP"))
       tls_config {
         insecure_skip_verify = true
-      }
-    }
-    
-    discovery.kubernetes "pods" {
-    	role = "pod"
-      selectors {
-        field = "spec.nodeName=" + sys.env("HOSTNAME")
-        role = "pod"
       }
     }
 
@@ -37,20 +29,20 @@ data:
       role = "service"
     }
 
-    discovery.kubernetes "ingresses" {
-      role = "ingress"
-    }
-
     discovery.relabel "pod_logs" {
       targets = discovery.kubelet.pods.targets
       rule {
         action = "labelmap"
         regex  = "__meta_kubernetes_pod_label_(.+)"
       }
+      rule {
+        action = "labelmap"
+        regex  = "__meta_kubernetes_node_label_(.+)"
+      }
     }
 
     discovery.relabel "all_targets_with_address" {
-      targets = array.concat(discovery.kubernetes.pods.targets, discovery.kubernetes.nodes.targets, discovery.kubernetes.services.targets, discovery.kubernetes.ingresses.targets)
+      targets = array.concat(discovery.kubelet.pods.targets, discovery.kubernetes.nodes.targets, discovery.kubernetes.services.targets)
       rule {
         action = "drop"
         regex = "Succeeded|Failed"
@@ -115,11 +107,11 @@ data:
       }
       rule {
         action = "labelmap"
-        regex  = "__meta_kubernetes_ingress_label_(.+)"
+        regex  = "__meta_kubernetes_endpointslice_label_(.+)"
       }
       rule {
         action = "labelmap"
-        regex  = "__meta_kubernetes_endpointslice_label_(.+)"
+        regex  = "__meta_kubernetes_ingress_label_(.+)"
       }
       rule {
         action = "replace"
@@ -219,6 +211,28 @@ data:
       passthrough = false 
       output {
         traces = [
+          otelcol.processor.tail_sampling.rate_limiter.input,
+        ]
+      }
+    }
+
+    otelcol.processor.tail_sampling "rate_limiter" {
+      policy {
+        name = "sample-errors"
+        type = "status_code"
+        status_code {
+          status_codes = ["ERROR"]
+        }
+      }
+      policy {
+        name = "rate-limit-ok"
+        type = "rate_limiting"
+        rate_limiting {
+          spans_per_second = 400
+        }
+      }
+      output {
+        traces = [
           otelcol.processor.batch.otel.input,
           otelcol.connector.servicegraph.tempo.input,
         ]
@@ -248,6 +262,9 @@ data:
     }
 
     otelcol.processor.batch "otel" {
+      timeout = "6s"
+      send_batch_size = 200
+      send_batch_max_size = 300
       output {
         logs    = [otelcol.exporter.loki.loki.input]
         metrics = [otelcol.exporter.prometheus.otel.input]
