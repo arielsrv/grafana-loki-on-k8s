@@ -52,15 +52,15 @@ tasks:
       - helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
       - helm repo add metrics-server https://kubernetes-sigs.github.io/metrics-server
       - helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+      - helm repo add traefik https://traefik.github.io/charts
 
   k:setup:
     cmds:
       - helm repo update
       - |
-        helm install ingress-nginx ingress-nginx/ingress-nginx \
-          --namespace ingress-nginx \
-          --create-namespace
-      - kubectl rollout status deployment ingress-nginx-controller -n ingress-nginx --timeout=120s
+        helm install traefik traefik/traefik \
+          --set additionalArguments\[0\]="--providers.kubernetescrd.allowCrossNamespace=true" \
+          --set additionalArguments\[1\]="--providers.kubernetescrd.allowExternalNameServices=true"
       - |
         helm install metrics-server metrics-server/metrics-server \
           --namespace kube-system \
